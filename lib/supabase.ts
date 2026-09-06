@@ -1,19 +1,16 @@
 import { createClient } from "@supabase/supabase-js";
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+// `createClient` expects the project URL, not its REST endpoint. Accept either
+// form so a URL copied from the Supabase REST API settings still works.
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL?.replace(
+  /\/rest\/v1\/?$/,
+  ""
+);
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (
-  !supabaseUrl ||
-  !supabaseAnonKey ||
-  !/^https?:\/\//.test(supabaseUrl)
-) {
-  throw new Error(
-    "Missing or invalid Supabase config. Set NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in .env.local with your real Supabase project values."
-  );
-}
-
-export const supabase = createClient(
-  supabaseUrl,
-  supabaseAnonKey
-);
+export const supabase =
+  supabaseUrl &&
+  supabaseAnonKey &&
+  /^https?:\/\//.test(supabaseUrl)
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
