@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabase";
 import { Product } from "@/types/product";
@@ -40,6 +40,30 @@ function SkeletonCard() {
 }
 
 export default function ShopPage() {
+  return (
+    <Suspense fallback={<ShopPageFallback />}>
+      <ShopPageContent />
+    </Suspense>
+  );
+}
+
+function ShopPageFallback() {
+  return (
+    <main className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b">
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="h-10 w-64 rounded bg-gray-100 animate-pulse" />
+          <div className="mt-3 h-4 w-32 rounded bg-gray-100 animate-pulse" />
+        </div>
+      </div>
+      <div className="max-w-7xl mx-auto px-6 py-8 grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {Array.from({ length: 6 }).map((_, index) => <SkeletonCard key={index} />)}
+      </div>
+    </main>
+  );
+}
+
+function ShopPageContent() {
   const searchParams = useSearchParams();
   const categoryParam = searchParams.get("category");
 
