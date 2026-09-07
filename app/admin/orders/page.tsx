@@ -16,7 +16,7 @@ type OrderItem = {
 };
 
 type Order = {
-  id: string;
+  id: number | string;
   customer_name: string;
   customer_email: string | null;
   customer_phone: string | null;
@@ -414,7 +414,7 @@ export default function AdminOrdersPage() {
 
   const filtered = orders.filter((o) => {
     const q = search.toLowerCase();
-    const matchSearch  = o.id.toLowerCase().includes(q)
+    const matchSearch  = String(o.id).toLowerCase().includes(q)
       || o.customer_name.toLowerCase().includes(q)
       || (o.customer_email ?? "").toLowerCase().includes(q);
     const matchStatus  = !statusFilter  || o.status === statusFilter;

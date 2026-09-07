@@ -16,7 +16,7 @@ export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
   const router = useRouter();
 
-  const [form, setForm] = useState({ name: "", contact: "", address: "", payment: "cod" });
+  const [form, setForm] = useState({ name: "", email: "", contact: "", address: "", city: "", province: "", postalCode: "", payment: "cod" });
   const [errors,  setErrors]  = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState(false);
 
@@ -25,10 +25,18 @@ export default function CheckoutPage() {
   function validate() {
     const e: Record<string, string> = {};
     if (!form.name.trim())    e.name    = "Full name is required.";
+    if (!form.email.trim())   e.email   = "Email address is required.";
+    else if (!/^\S+@\S+\.\S+$/.test(form.email.trim()))
+      e.email = "Enter a valid email address.";
     if (!form.contact.trim()) e.contact = "Contact number is required.";
     else if (!/^[0-9+\-\s]{7,15}$/.test(form.contact.trim()))
       e.contact = "Enter a valid contact number.";
     if (!form.address.trim()) e.address = "Delivery address is required.";
+    if (!form.city.trim())    e.city    = "City is required.";
+    if (!form.province.trim()) e.province = "Province is required.";
+    if (!form.postalCode.trim()) e.postalCode = "Postal code is required.";
+    else if (!/^\d{4}$/.test(form.postalCode.trim()))
+      e.postalCode = "Enter a valid 4-digit postal code.";
     return e;
   }
 
@@ -46,8 +54,12 @@ export default function CheckoutPage() {
         .from("orders")
         .insert({
           customer_name:  form.name.trim(),
+          customer_email: form.email.trim().toLowerCase(),
           customer_phone: form.contact.trim(),
           address:        form.address.trim(),
+          city:           form.city.trim(),
+          province:       form.province.trim(),
+          postal_code:    form.postalCode.trim(),
           payment_method: paymentLabel,
           total_amount:   cartTotal,
           subtotal:       cartTotal,
@@ -57,21 +69,30 @@ export default function CheckoutPage() {
         .select()
         .single();
 
-      if (!orderErr && orderRow) {
-        savedOrderId = orderRow.id;
-        const items = cart.map((item) => ({
-          order_id:     savedOrderId,
-          product_id:   String(item.id),
-          product_name: item.name,
-          size:         item.size  || null,
-          color:        item.color || null,
-          price:        item.price,
-          quantity:     item.quantity,
-          subtotal:     item.price * item.quantity,
-        }));
-        await supabase.from("order_items").insert(items);
-      } else if (orderErr) {
-        console.error("Order insert error:", orderErr.message);
+      if (orderErr || !orderRow) {
+        console.error("Order insert error:", orderErr?.message);
+        setErrors({ submit: "We could not place your order. Please try again." });
+        setPlacing(false);
+        return;
+      }
+
+      savedOrderId = orderRow.id;
+      const items = cart.map((item) => ({
+        order_id:     savedOrderId,
+        product_id:   String(item.id),
+        product_name: item.name,
+        size:         item.size  || null,
+        color:        item.color || null,
+        price:        item.price,
+        quantity:     item.quantity,
+        subtotal:     item.price * item.quantity,
+      }));
+      const { error: itemsError } = await supabase.from("order_items").insert(items);
+      if (itemsError) {
+        console.error("Order items insert error:", itemsError.message);
+        setErrors({ submit: "Your order was saved, but its items could not be saved. Please contact support." });
+        setPlacing(false);
+        return;
       }
     }
 
@@ -79,7 +100,15 @@ export default function CheckoutPage() {
     localStorage.setItem("last_order", JSON.stringify({
       id:       savedOrderId,
       date:     new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }),
-      customer: { name: form.name, contact: form.contact, address: form.address },
+      customer: {
+        name: form.name,
+        email: form.email,
+        contact: form.contact,
+        address: form.address,
+        city: form.city,
+        province: form.province,
+        postalCode: form.postalCode,
+      },
       payment:  paymentLabel,
       items:    cart,
       total:    cartTotal,
@@ -139,6 +168,7 @@ export default function CheckoutPage() {
               <div className="space-y-4">
                 {[
                   { key: "name",    label: "Full Name",       type: "text", placeholder: "e.g. Juan Dela Cruz" },
+                  { key: "email",   label: "Email Address",   type: "email", placeholder: "e.g. juan@email.com" },
                   { key: "contact", label: "Contact Number",  type: "tel",  placeholder: "e.g. 09XX XXX XXXX" },
                 ].map(({ key, label, type, placeholder }) => (
                   <div key={key}>
@@ -167,6 +197,48 @@ export default function CheckoutPage() {
                     className={`w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none transition resize-none ${errors.address ? "border-red-300 bg-red-50" : "border-gray-100 focus:border-black"}`}
                   />
                   {errors.address && <p className="text-red-400 text-xs mt-1">{errors.address}</p>}
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                    City <span className="text-red-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={form.city}
+                    onChange={(e) => field("city", e.target.value)}
+                    placeholder="e.g. Cebu City"
+                    className={`w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none transition ${errors.city ? "border-red-300 bg-red-50" : "border-gray-100 focus:border-black"}`}
+                  />
+                  {errors.city && <p className="text-red-400 text-xs mt-1">{errors.city}</p>}
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                      Province <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={form.province}
+                      onChange={(e) => field("province", e.target.value)}
+                      placeholder="e.g. Cebu"
+                      className={`w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none transition ${errors.province ? "border-red-300 bg-red-50" : "border-gray-100 focus:border-black"}`}
+                    />
+                    {errors.province && <p className="text-red-400 text-xs mt-1">{errors.province}</p>}
+                  </div>
+                  <div>
+                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wider block mb-1.5">
+                      Postal Code <span className="text-red-400">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={form.postalCode}
+                      onChange={(e) => field("postalCode", e.target.value)}
+                      placeholder="e.g. 6000"
+                      className={`w-full border-2 rounded-xl px-4 py-3 text-sm focus:outline-none transition ${errors.postalCode ? "border-red-300 bg-red-50" : "border-gray-100 focus:border-black"}`}
+                    />
+                    {errors.postalCode && <p className="text-red-400 text-xs mt-1">{errors.postalCode}</p>}
+                  </div>
                 </div>
               </div>
             </div>
