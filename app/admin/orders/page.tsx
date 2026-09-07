@@ -133,7 +133,7 @@ function OrderDrawer({
 }: {
   order: Order;
   onClose: () => void;
-  onStatusUpdate: (id: string, status: string) => Promise<void>;
+  onStatusUpdate: (id: number | string, status: string) => Promise<void>;
 }) {
   const [items, setItems]         = useState<OrderItem[]>(order.order_items ?? []);
   const [loadingItems, setLoadingItems] = useState(false);
@@ -166,7 +166,7 @@ function OrderDrawer({
     if (selectedStatus === order.status) return;
     setSaving(true);
     setSaveMsg("");
-    await onStatusUpdate(order.id, selectedStatus);
+    await onStatusUpdate(String(order.id), selectedStatus);
     setSaveMsg("Status updated successfully!");
     setSaving(false);
     setTimeout(() => setSaveMsg(""), 3000);
@@ -368,7 +368,7 @@ export default function AdminOrdersPage() {
   const [statusFilter,  setStatusFilter]  = useState("");
   const [paymentFilter, setPaymentFilter] = useState("");
   const [toast,         setToast]         = useState("");
-  const [updating,      setUpdating]      = useState<string | null>(null);
+  const [updating,      setUpdating]      = useState<number | string | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
 
   useEffect(() => { loadOrders(); }, []);
@@ -384,7 +384,7 @@ export default function AdminOrdersPage() {
     setLoading(false);
   }
 
-  async function updateStatus(orderId: string, newStatus: string) {
+  async function updateStatus(orderId: number | string, newStatus: string) {
     if (!supabase) return;
     setUpdating(orderId);
     const { error } = await supabase
@@ -560,12 +560,12 @@ export default function AdminOrdersPage() {
                         <select
                           value={order.status}
                           onChange={(e) => updateStatus(order.id, e.target.value)}
-                          disabled={updating === order.id}
+                          disabled={updating === String(order.id) || updating === order.id}
                           className="text-xs border-2 border-gray-200 rounded-xl px-3 py-1.5 focus:outline-none focus:border-black disabled:opacity-50 font-semibold"
                         >
                           {STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                         </select>
-                        {updating === order.id && (
+                        {(updating === order.id || updating === String(order.id)) && (
                           <svg className="w-4 h-4 animate-spin text-gray-400" fill="none" viewBox="0 0 24 24">
                             <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
                             <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
