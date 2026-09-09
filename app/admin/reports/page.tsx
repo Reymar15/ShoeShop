@@ -20,7 +20,8 @@ const MONTHLY_SALES = [
   { month: "Jul", sales: 96300 },
 ];
 
-const DEMO_ORDERS: never[] = [];
+type OrderStat = { total: number; status: string; payment: string };
+const DEMO_ORDERS: OrderStat[] = [];
 
 const PAYMENT_COLORS: Record<string, string> = {
   "Cash on Delivery": "bg-yellow-400",
@@ -114,7 +115,7 @@ function PaymentBreakdown({ orders }: { orders: { payment: string }[] }) {
 export default function SalesReportsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading,  setLoading]  = useState(true);
-  const [allOrders, setAllOrders] = useState(DEMO_ORDERS);
+  const [allOrders, setAllOrders] = useState<OrderStat[]>(DEMO_ORDERS);
 
   useEffect(() => {
     const prods = getProducts();
