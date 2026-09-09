@@ -2,8 +2,8 @@
 
 import { Suspense, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { supabase } from "@/lib/supabase";
 import { Product } from "@/types/product";
+import { getProducts } from "@/lib/store";
 import ProductCard from "@/components/ProductCard";
 
 const CATEGORIES = [
@@ -79,18 +79,13 @@ function ShopPageContent() {
   const [maxPrice, setMaxPrice] = useState("");
   const [sidebarOpen, setSidebarOpen]   = useState(false);
 
-  useEffect(() => { loadProducts(); }, []);
+  useEffect(() => {
+    setProducts(getProducts());
+    setLoading(false);
+  }, []);
   useEffect(() => {
     setActiveCategory(categoryParam ? Number(categoryParam) : null);
   }, [categoryParam]);
-
-  async function loadProducts() {
-    setLoading(true);
-    if (!supabase) { setProducts([]); setLoading(false); return; }
-    const { data } = await supabase.from("products").select("*");
-    setProducts(data || []);
-    setLoading(false);
-  }
 
   const brands = [...new Set(products.map((p) => p.brand))].filter(Boolean);
 

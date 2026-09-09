@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import { useCart } from "@/context/CartContext";
-import { supabase } from "@/lib/supabase";
+import { useUser } from "@/context/UserContext";
+import { getOrders, saveOrders } from "@/lib/store";
 
 const PAYMENT_METHODS = [
   { id: "cod",   label: "Cash on Delivery", desc: "Pay when your order arrives.",      icon: "💵" },
@@ -14,9 +15,20 @@ const PAYMENT_METHODS = [
 
 export default function CheckoutPage() {
   const { cart, cartTotal, clearCart } = useCart();
+  const { user, loading } = useUser();
   const router = useRouter();
 
+  useEffect(() => {
+    if (!loading && !user) router.replace("/login");
+  }, [user, loading, router]);
+
   const [form, setForm] = useState({ name: "", email: "", contact: "", address: "", city: "", province: "", postalCode: "", payment: "cod" });
+
+  useEffect(() => {
+    if (user) {
+      setForm((f) => ({ ...f, name: user.fullName, email: user.email, contact: user.phone || "" }));
+    }
+  }, [user]);
   const [errors,  setErrors]  = useState<Record<string, string>>({});
   const [placing, setPlacing] = useState(false);
 
@@ -46,54 +58,50 @@ export default function CheckoutPage() {
     setPlacing(true);
 
     const paymentLabel = PAYMENT_METHODS.find((p) => p.id === form.payment)!.label;
-    let savedOrderId = `ORD-${Date.now()}`;
+    const savedOrderId = `ORD-${Date.now()}`;
 
-    /* ── Save to Supabase ── */
-    if (supabase) {
-      const { data: orderRow, error: orderErr } = await supabase
-        .from("orders")
-        .insert({
-          customer_name:  form.name.trim(),
-          customer_email: form.email.trim().toLowerCase(),
-          customer_phone: form.contact.trim(),
-          address:        form.address.trim(),
-          city:           form.city.trim(),
-          province:       form.province.trim(),
-          postal_code:    form.postalCode.trim(),
-          payment_method: paymentLabel,
-          total_amount:   cartTotal,
-          subtotal:       cartTotal,
-          shipping_fee:   0,
-          status:         "Pending",
-        })
-        .select()
-        .single();
-
-      if (orderErr || !orderRow) {
-        console.error("Order insert error:", orderErr?.message);
-        setErrors({ submit: "We could not place your order. Please try again." });
-        setPlacing(false);
-        return;
-      }
-
-      savedOrderId = orderRow.id;
-      const items = cart.map((item) => ({
-        order_id:     savedOrderId,
-        product_id:   String(item.id),
+    /* ── Save to global orders store (visible in admin) ── */
+    const newOrder = {
+      id: savedOrderId,
+      customer_name:  form.name.trim(),
+      customer_email: form.email.trim(),
+      customer_phone: form.contact.trim(),
+      address:        form.address.trim(),
+      city:           form.city.trim(),
+      province:       form.province.trim(),
+      postal_code:    form.postalCode.trim(),
+      payment_method: paymentLabel,
+      total_amount:   cartTotal,
+      status:         "Pending",
+      created_at:     new Date().toISOString(),
+      order_items:    cart.map((item, i) => ({
+        id: i + 1,
         product_name: item.name,
         size:         item.size  || null,
         color:        item.color || null,
         price:        item.price,
         quantity:     item.quantity,
         subtotal:     item.price * item.quantity,
-      }));
-      const { error: itemsError } = await supabase.from("order_items").insert(items);
-      if (itemsError) {
-        console.error("Order items insert error:", itemsError.message);
-        setErrors({ submit: "Your order was saved, but its items could not be saved. Please contact support." });
-        setPlacing(false);
-        return;
-      }
+      })),
+    };
+    const allOrders = getOrders();
+    saveOrders([newOrder, ...allOrders]);
+
+    /* ── Save to user's order history ── */
+    const orderData = {
+      id:       savedOrderId,
+      date:     new Date().toLocaleDateString("en-PH", { year: "numeric", month: "long", day: "numeric" }),
+      customer: { name: form.name, email: form.email, contact: form.contact, address: form.address, city: form.city, province: form.province, postalCode: form.postalCode },
+      payment:  paymentLabel,
+      items:    cart,
+      total:    cartTotal,
+      status:   "Pending",
+    };
+    if (user) {
+      const key = `shoeshop-orders-${user.email}`;
+      const existing = JSON.parse(localStorage.getItem(key) || "[]");
+      existing.unshift(orderData);
+      localStorage.setItem(key, JSON.stringify(existing));
     }
 
     /* ── Save to localStorage for order-success page ── */

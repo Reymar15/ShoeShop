@@ -89,8 +89,8 @@ export default function TrackOrderPage() {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (
-        parsed.id === trimmed ||
-        parsed.id?.toUpperCase() === trimmed.toUpperCase()
+        String(parsed.id) === trimmed ||
+        String(parsed.id).toUpperCase() === trimmed.toUpperCase()
       ) {
         setOrder({
           id:             parsed.id,

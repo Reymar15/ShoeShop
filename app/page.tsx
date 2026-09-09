@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState, useCallback } from "react";
-import { supabase } from "@/lib/supabase";
+import { getProducts } from "@/lib/store";
 import { Product } from "@/types/product";
 import ProductCard from "@/components/ProductCard";
 
@@ -198,22 +198,13 @@ export default function Home() {
   const [bestSellers, setBestSellers] = useState<Product[]>([]);
   const [loading,     setLoading]     = useState(true);
 
-  useEffect(() => { loadProducts(); }, []);
-
-  async function loadProducts() {
-    if (!supabase) { setLoading(false); return; }
-
-    const [featuredRes, newRes, bestRes] = await Promise.all([
-      supabase.from("products").select("*").limit(4),
-      supabase.from("products").select("*").order("created_at", { ascending: false }).limit(4),
-      supabase.from("products").select("*").order("sold_quantity", { ascending: false }).limit(4),
-    ]);
-
-    if (!featuredRes.error) setFeatured(featuredRes.data || []);
-    if (!newRes.error)      setNewArrivals(newRes.data || []);
-    if (!bestRes.error)     setBestSellers(bestRes.data || []);
+  useEffect(() => {
+    const all = getProducts();
+    setFeatured(all.slice(0, 4));
+    setNewArrivals([...all].reverse().slice(0, 4));
+    setBestSellers([...all].sort((a, b) => b.sold_quantity - a.sold_quantity).slice(0, 4));
     setLoading(false);
-  }
+  }, []);
 
   return (
     <>

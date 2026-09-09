@@ -74,7 +74,7 @@ export default function CategoriesPage() {
         {CATEGORIES.map((cat) => (
           <Link
             key={cat.id}
-            href={`/shop?category=${cat.id}`}
+            href={`/categories/${cat.id}`}
             className={`${cat.bg} ${cat.border} border rounded-2xl overflow-hidden hover:shadow-lg transition group`}
           >
             <img

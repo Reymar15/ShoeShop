@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import AdminGuard from "@/components/AdminGuard";
 
 const NAV = [
   { href: "/admin",          label: "Dashboard",  icon: "📊" },
@@ -12,9 +13,21 @@ const NAV = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const path = usePathname();
+  const router = useRouter();
+
+  // Login page — no sidebar, no guard
+  if (path === "/admin/login") {
+    return <>{children}</>;
+  }
+
+  function handleLogout() {
+    localStorage.removeItem("adminLoggedIn");
+    router.push("/admin/login");
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <AdminGuard>
+      <div className="min-h-screen bg-gray-50 flex">
 
       {/* Sidebar */}
       <aside className="w-60 bg-gray-900 text-white flex flex-col shrink-0 min-h-screen">
@@ -43,13 +56,19 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           })}
         </nav>
 
-        <div className="px-4 py-4 border-t border-white/10">
+        <div className="px-4 py-4 border-t border-white/10 space-y-1">
           <Link
             href="/"
             className="flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-400 hover:bg-white/10 hover:text-white transition"
           >
             <span>🏠</span> Back to Store
           </Link>
+          <button
+            onClick={handleLogout}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-semibold text-gray-400 hover:bg-red-500/20 hover:text-red-400 transition"
+          >
+            <span>🚪</span> Logout
+          </button>
         </div>
       </aside>
 
@@ -66,6 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         <main className="flex-1 p-8">{children}</main>
       </div>
 
-    </div>
+      </div>
+    </AdminGuard>
   );
 }

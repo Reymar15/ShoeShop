@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { supabase } from "@/lib/supabase";
+import { getProducts, getOrders } from "@/lib/store";
 import { Product } from "@/types/product";
 
 /* ── Demo monthly sales data ── */
@@ -20,13 +20,7 @@ const MONTHLY_SALES = [
   { month: "Jul", sales: 96300 },
 ];
 
-const DEMO_ORDERS = [
-  { total: 7995,  status: "Pending",   payment: "Cash on Delivery" },
-  { total: 12500, status: "Shipped",   payment: "GCash" },
-  { total: 4999,  status: "Delivered", payment: "Bank Transfer" },
-  { total: 8750,  status: "Processing",payment: "Cash on Delivery" },
-  { total: 15200, status: "Delivered", payment: "GCash" },
-];
+const DEMO_ORDERS: never[] = [];
 
 const PAYMENT_COLORS: Record<string, string> = {
   "Cash on Delivery": "bg-yellow-400",
@@ -123,20 +117,12 @@ export default function SalesReportsPage() {
   const [allOrders, setAllOrders] = useState(DEMO_ORDERS);
 
   useEffect(() => {
-    loadProducts();
-    const saved = localStorage.getItem("last_order");
-    if (saved) {
-      const o = JSON.parse(saved);
-      setAllOrders([{ total: o.total, status: "Processing", payment: o.payment }, ...DEMO_ORDERS]);
-    }
-  }, []);
-
-  async function loadProducts() {
-    if (!supabase) { setLoading(false); return; }
-    const { data } = await supabase.from("products").select("*").order("sold_quantity", { ascending: false });
-    setProducts(data || []);
+    const prods = getProducts();
+    setProducts([...prods].sort((a, b) => b.sold_quantity - a.sold_quantity));
+    const orders = getOrders();
+    setAllOrders(orders.map((o) => ({ total: o.total_amount, status: o.status, payment: o.payment_method })));
     setLoading(false);
-  }
+  }, []);
 
   /* ── Computed stats ── */
   const totalProductSales = products.reduce((s, p) => s + Number(p.price) * p.sold_quantity, 0);
